@@ -40,17 +40,17 @@ services:
     networks:
       - youtube_bot_network
 
-  nginx:
-    image: nginx:latest
-    container_name: nginx_youtube_bot
-    restart: always
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - static_volume:/app/staticfiles
-    depends_on:
-      - youtube_web
+  # nginx:
+  #   image: nginx:latest
+  #   container_name: nginx_youtube_bot
+  #   restart: always
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  #     - static_volume:/app/staticfiles
+  #   depends_on:
+  #     - youtube_web
   
   youtube_bot:
     build: .
