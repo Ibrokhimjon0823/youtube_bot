@@ -42,7 +42,8 @@ services:
 
   nginx:
     image: nginx:latest
-    container_name: nginx_proxy
+    container_name: nginx_youtube_bot
+    restart: always
     ports:
       - "80:80"
     volumes:
