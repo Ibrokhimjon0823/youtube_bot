@@ -59,6 +59,8 @@ services:
       - .:/app
       - download_files:/app/downloads
       - ./yt_bot/logs:/app/logs
+      - ./logs:/app/logs
+
     env_file:
       - .env
     environment:
