@@ -1,0 +1,81 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    restart: always
+    volumes:
+      - ./:/app
+      - django_static:/app/static
+      - download_files:/app/downloads
+      - ./backups:/app/backups
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --no-input &&
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000"
+    networks:
+      - youtube_bot_network
+
+  # PostgreSQL database service
+  db:
+    image: postgres:14-alpine
+    container_name: youtube_bot_db
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - ./db.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - youtube_bot_network
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles
+    depends_on:
+      - web
+  
+  youtube_bot:
+    build: .
+    command: python manage.py runbot
+    volumes:
+      - .:/app
+      - download_files:/app/downloads
+      - ./yt_bot/logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
+  django_static:
+  download_files:
+  static_volume:
+
+networks:
+  youtube_bot_network:
+    driver: bridge
