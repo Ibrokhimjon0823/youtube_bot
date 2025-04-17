@@ -35,35 +35,33 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB Telegram limit
 
 
-def get_or_create_user(update: Update):
-    """Create or update user in database"""
+def get_or_create_user(update: Update) -> User:
+    """Create or update user in database using BigIntegerField"""
     user_data = update.effective_user
-    user, created = User.objects.get_or_create(
-        telegram_id=user_data.id,
+    return User.objects.get_or_create(
+        telegram_id=user_data.id,  # Directly use integer ID
         defaults={
             "username": user_data.username,
             "first_name": user_data.first_name,
-            "last_name": user_data.last_name,
-            "language_code": user_data.language_code,
+            "last_name": user_data.last_name or "",
+            "language_code": user_data.language_code or "",
         },
-    )
-    return user
+    )[0]  # Return the User instance
 
 
 def start(update: Update, context: CallbackContext):
-    """Start command - introduces the bot and initializes user"""
+    """Improved start command with single user creation call"""
     user = get_or_create_user(update)
+
     welcome_msg = (
         f"Welcome {user.first_name} to YouTube Downloader Bot!\n\n"
-        f"Send me a YouTube link to download videos or extract audio.\n"
-        f"Use /help to see all available commands."
+        "Send me a YouTube link to download videos or extract audio.\n"
+        "Use /help to see all available commands."
     )
 
-    reply_keyboard = [["/help", "/stats"]]
     reply_markup = ReplyKeyboardMarkup(
-        reply_keyboard, resize_keyboard=True, persistent=True
+        [["/help", "/stats"]], resize_keyboard=True, persistent=True
     )
-
     update.message.reply_text(welcome_msg, reply_markup=reply_markup)
 
 
@@ -337,6 +335,8 @@ class Command(BaseCommand):
             return
 
         updater = Updater(token=token, use_context=True)
+        updater.bot.delete_webhook()
+
         dp = updater.dispatcher
 
         # Add handlers

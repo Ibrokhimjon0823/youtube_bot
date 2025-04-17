@@ -1,18 +1,19 @@
-import os
+import json
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import os
+import re
+from pathlib import Path
+
+import yt_dlp
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
-    CommandHandler,
-    MessageHandler,
     CallbackQueryHandler,
-    filters,
+    CommandHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
-import yt_dlp
-import re
-import json
-from pathlib import Path
 
 # Enable logging
 logging.basicConfig(
@@ -21,9 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Replace with your Telegram Bot Token from BotFather
-TELEGRAM_TOKEN = os.environ.get(
-    "TELEGRAM_TOKEN", "7526573148:AAFKVZQgsINhYaGAloaxnLRm7wN9c4aYVFM"
-)
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
 # YouTube URL regex pattern
 YOUTUBE_REGEX = r"(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})"
@@ -178,7 +177,7 @@ async def process_youtube_link(
         # Check if the video is too long (>20 minutes)
         if duration > 1200:  # 20 minutes in seconds
             await status_message.edit_text(
-                f"⚠️ This video is {duration//60} minutes long, which may exceed Telegram's file size limits.\n"
+                f"⚠️ This video is {duration // 60} minutes long, which may exceed Telegram's file size limits.\n"
                 "Only the first part might be downloadable."
             )
 
@@ -331,7 +330,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
-            f"📺 *{video_title}*\n\n" "Choose video quality:",
+            f"📺 *{video_title}*\n\nChoose video quality:",
             reply_markup=reply_markup,
             parse_mode="Markdown",
         )
@@ -349,7 +348,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
-            f"📺 *{video_title}*\n\n" "Please select your download format:",
+            f"📺 *{video_title}*\n\nPlease select your download format:",
             reply_markup=reply_markup,
             parse_mode="Markdown",
         )
@@ -591,7 +590,7 @@ async def download_audio(
     # Cleanup
     os.remove(audio_filename)
     await query.edit_message_text(
-        f"✅ Audio downloaded successfully!\n" f"🎵 *{video_title}*",
+        f"✅ Audio downloaded successfully!\n🎵 *{video_title}*",
         parse_mode="Markdown",
     )
 

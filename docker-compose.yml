@@ -15,21 +15,25 @@ services:
     ports:
       - "8008:8008"
     depends_on:
-      - db
+      - youtube_db
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --no-input &&
-             gunicorn core.wsgi:application --bind 0.0.0.0:8000"
+             python manage.py runserver 0.0.0.0:8008"
     networks:
       - youtube_bot_network
 
   # PostgreSQL database service
-  db:
+  youtube_db:
     image: postgres:14-alpine
     container_name: youtube_bot_db
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     env_file:
       - ./db.env
     healthcheck:
@@ -70,7 +74,7 @@ services:
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - PYTHONUNBUFFERED=1
     depends_on:
-      db:
+      youtube_db:
         condition: service_healthy
     restart: always
 
