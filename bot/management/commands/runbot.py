@@ -170,7 +170,6 @@ def download_video(
             video_title = info_dict.get("title", "Unknown Title")
             duration = info_dict.get("duration", 0)
     except Exception as e:
-        logger.error(f"Error getting video info: {str(e)}")
         context.bot.edit_message_text(
             text=f"❌ Error getting video information: {str(e)}",
             chat_id=processing_msg.chat_id,
@@ -283,7 +282,6 @@ def download_video(
 
         except Exception as e:
             error_message = str(e)
-            logger.error(f"Download error: {error_message}")
 
             # Send error message to user
             context.bot.edit_message_text(
