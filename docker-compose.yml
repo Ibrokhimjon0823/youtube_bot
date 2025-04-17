@@ -32,12 +32,11 @@ services:
     volumes:
       - .:/app
       - download_files:/app/downloads
-      - ./youtube.com_cookies.txt:/app/youtube.com_cookies.txt:ro  # ✅ Add this line
+      - ./youtube.com_cookies.txt:/app/youtube.com_cookies.txt:rw
     env_file:
       - .env
     depends_on:
       - youtube_db
-
 
 volumes:
   postgres_data:
