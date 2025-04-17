@@ -163,9 +163,14 @@ def download_video(
     """Download a video/audio from YouTube and send it to the user"""
     user = get_or_create_user(update)
 
+    common_options = {
+        "quiet": True,
+        "no_warnings": True,
+        "cookiefile": "/app/youtube.com_cookies.txt",
+    }
     # Get video info
     try:
-        with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
+        with yt_dlp.YoutubeDL(common_options) as ydl:
             info_dict = ydl.extract_info(url, download=False)
             video_title = info_dict.get("title", "Unknown Title")
             duration = info_dict.get("duration", 0)
@@ -198,12 +203,13 @@ def download_video(
         return
 
     # Set up download options
-    download_options = {
-        "format": "best" if download_type == "VIDEO" else "bestaudio/best",
-        "outtmpl": "%(title)s.%(ext)s",
-        "quiet": True,
-        "no_warnings": True,
-    }
+    download_options = common_options.copy()
+    download_options.update(
+        {
+            "format": "best" if download_type == "VIDEO" else "bestaudio/best",
+            "outtmpl": "%(title)s.%(ext)s",
+        }
+    )
 
     if download_type == "AUDIO":
         download_options.update(
