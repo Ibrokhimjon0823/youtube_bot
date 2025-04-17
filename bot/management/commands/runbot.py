@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import tempfile
@@ -23,45 +22,40 @@ from telegram.ext import (
 
 from bot.models import Download, User
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
-
 # Constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB Telegram limit
 
 
-def get_or_create_user(update: Update) -> User:
-    """Create or update user in database using BigIntegerField"""
+def get_or_create_user(update: Update):
+    """Create or update user in database"""
     user_data = update.effective_user
-    return User.objects.get_or_create(
-        telegram_id=user_data.id,  # Directly use integer ID
+    user, created = User.objects.get_or_create(
+        telegram_id=user_data.id,
         defaults={
             "username": user_data.username,
             "first_name": user_data.first_name,
-            "last_name": user_data.last_name or "",
-            "language_code": user_data.language_code or "",
+            "last_name": user_data.last_name,
+            "language_code": user_data.language_code,
         },
-    )[0]  # Return the User instance
+    )
+    return user
 
 
 def start(update: Update, context: CallbackContext):
-    """Improved start command with single user creation call"""
-    user = get_or_create_user(update)
-
+    """Start command - introduces the bot and initializes user"""
+    get_or_create_user(update)
     welcome_msg = (
-        f"Welcome {user.first_name} to YouTube Downloader Bot!\n\n"
+        "Welcome to YouTube Downloader Bot!\n\n"
         "Send me a YouTube link to download videos or extract audio.\n"
         "Use /help to see all available commands."
     )
 
+    # Persistent reply keyboard
+    reply_keyboard = [["/help", "/stats"]]
     reply_markup = ReplyKeyboardMarkup(
-        [["/help", "/stats"]], resize_keyboard=True, persistent=True
+        reply_keyboard, resize_keyboard=True, persistent=True
     )
+
     update.message.reply_text(welcome_msg, reply_markup=reply_markup)
 
 
@@ -335,8 +329,6 @@ class Command(BaseCommand):
             return
 
         updater = Updater(token=token, use_context=True)
-        updater.bot.delete_webhook()
-
         dp = updater.dispatcher
 
         # Add handlers
