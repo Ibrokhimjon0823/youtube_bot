@@ -108,7 +108,9 @@ def stats_command(update: Update, context: CallbackContext):
         f"✅ Successful downloads: {successful_downloads}\n"
         f"📈 Success rate: {success_rate:.1f}%\n"
         f"🎬 Video downloads: {video_downloads}\n"
-        f"🎵 Audio downloads: {audio_downloads}\n"
+        f"🎵 Audio downloads: {audio_downloads}\n\n"
+        f"*Note:* Statistics are updated after each download.\n"
+        f"Total number of users: {User.objects.count()}"
     )
 
     update.message.reply_text(stats_message, parse_mode="Markdown")
