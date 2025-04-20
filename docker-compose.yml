@@ -7,7 +7,7 @@ services:
              python manage.py runserver 0.0.0.0:8008"
     volumes:
       - ./:/app
-      - django_static:/app/static
+      - django_static:/app/staticfiles
       - download_files:/app/downloads
       - ./backups:/app/backups
     env_file:
