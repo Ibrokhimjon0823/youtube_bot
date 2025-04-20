@@ -20,20 +20,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create directories for media
+RUN mkdir -p /app/downloads
+RUN mkdir -p /app/staticfiles
+
 # Copy project
 COPY . /app/
+
+# Set proper permissions BEFORE switching to non-root user
+RUN chmod -R 777 /app/cookies
+RUN chmod -R 777 /app/cookies/youtube.com_cookies.txt
 
 # Run as non-root user (for security)
 RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
 USER appuser
-
-# Create directories for media
-RUN mkdir -p /app/downloads
-RUN mkdir -p /app/staticfiles
-
-# Give proper permissions to the cookies folder and file
-RUN chmod -R 777 /app/cookies
-RUN chmod 777 /app/cookies/youtube.com_cookies.txt
-RUN chown -R appuser:appuser /app/cookies
-
