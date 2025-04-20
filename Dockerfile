@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -14,22 +14,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+# Create non-root user first
+RUN useradd -m appuser
 
-# Copy entire project (including cookies)
+# Copy project (including cookies early)
 COPY . /app/
 
-# Fix permissions for directories
+# Create folders and fix permissions
 RUN mkdir -p /app/downloads /app/staticfiles /app/cookies \
-    && chown -R appuser:appuser /app \
-    && chmod 644 /app/cookies/youtube.com_cookies.txt \
-    && chmod 644 /app/cookies/instagram.com_cookies.txt
+    && chmod 644 /app/cookies/youtube.com_cookies.txt || true \
+    && chmod 644 /app/cookies/instagram.com_cookies.txt || true \
+    && chown -R appuser:appuser /app
 
+# Install Python deps
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Create non-root user
-RUN useradd -m appuser
+# Switch to non-root user
 USER appuser
-
-# Entrypoint/command will be set in docker-compose
