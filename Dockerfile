@@ -20,21 +20,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create user first
-RUN useradd -m appuser
-
-# Create directories with proper permissions
-RUN mkdir -p /app/downloads /app/staticfiles /app/cookies
-
-# Copy project 
+# Copy project
 COPY . /app/
 
-# Change ownership of everything to appuser
+# Create directories for media
+RUN mkdir -p /app/downloads
+RUN mkdir -p /app/staticfiles
+
+# Run as non-root user (for security)
+RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
-
-# Set very permissive permissions specifically for cookies directory and files
-RUN chmod -R 755 /app/cookies
-RUN chmod 666 /app/cookies/*.txt
-
-# Switch to appuser
 USER appuser
+
+# Command will be specified in docker-compose.yml
