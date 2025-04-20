@@ -20,27 +20,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create user first
+RUN useradd -m appuser
+
 # Create directories with proper permissions
 RUN mkdir -p /app/downloads /app/staticfiles /app/cookies
 
-# Create empty cookies file if it doesn't exist in the source
-RUN touch /app/cookies/youtube.com_cookies.txt
-
-# Set very permissive permissions
-RUN chmod -R 777 /app/cookies
-RUN chmod 666 /app/cookies/youtube.com_cookies.txt
-
-# Copy project (will overwrite the empty cookies file if one exists in your source)
+# Copy project 
 COPY . /app/
 
-# Ensure permissions again after copying (in case the file was overwritten)
-RUN chmod -R 777 /app/cookies
-RUN chmod 666 /app/cookies/youtube.com_cookies.txt
-
-# Run as non-root user (for security)
-RUN useradd -m appuser
+# Change ownership of everything to appuser
 RUN chown -R appuser:appuser /app
-USER appuser
 
-# Verify the file exists and has correct permissions
-RUN ls -la /app/cookies/
+# Set very permissive permissions specifically for cookies directory and files
+RUN chmod -R 755 /app/cookies
+RUN chmod 666 /app/cookies/*.txt
+
+# Switch to appuser
+USER appuser
