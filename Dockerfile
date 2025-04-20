@@ -7,9 +7,6 @@ ENV PYTHONUNBUFFERED=1
 # Set work directory
 WORKDIR /app
 
-# create the app user
-RUN addgroup --system appuser && adduser --system --group appuser
-
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -30,13 +27,9 @@ COPY . /app/
 RUN mkdir -p /app/downloads
 RUN mkdir -p /app/staticfiles
 
-
+# Run as non-root user (for security)
+RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
-RUN chmod -R 755 /app
-RUN chown -R appuser:appuser /app/downloads
-RUN chown -R appuser:appuser /app/staticfiles
-RUN chmod -R 755 /app/downloads
-RUN chmod -R 755 /app/staticfiles
 USER appuser
 
 # Command will be specified in docker-compose.yml
