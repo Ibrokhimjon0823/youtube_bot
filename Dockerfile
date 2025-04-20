@@ -23,13 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . /app/
 
-# Create directories for media
-RUN mkdir -p /app/downloads
-RUN mkdir -p /app/staticfiles
-
 # Run as non-root user (for security)
 RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
 USER appuser
-
-# Command will be specified in docker-compose.yml
