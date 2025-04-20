@@ -30,7 +30,7 @@ RUN mkdir -p /app/downloads /app/staticfiles /app/cookies
 COPY . /app/
 
 # Change ownership of everything to appuser
-RUN chown -R appuser:appuser /app/cookies
+RUN chown -R appuser:appuser /app
 
 # Set very permissive permissions specifically for cookies directory and files
 RUN chmod -R 755 /app/cookies
