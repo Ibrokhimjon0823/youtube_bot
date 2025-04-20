@@ -16,25 +16,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Create appuser first
+RUN useradd -m appuser
+
 # Install Python dependencies
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create user first
-RUN useradd -m appuser
+# Create directories for media - owned by appuser
+RUN mkdir -p /app/downloads /app/staticfiles /app/cookies && \
+    chown -R appuser:appuser /app
 
-# Create directories with proper permissions
-RUN mkdir -p /app/downloads /app/staticfiles /app/cookies
+# Handle cookie files separately before copying all project files
+COPY cookies/*.txt /app/cookies/
+RUN chown -R appuser:appuser /app/cookies && \
+    chmod -R 755 /app/cookies && \
+    chmod 666 /app/cookies/*.txt || true
 
-# Copy project 
-COPY . /app/
+# Copy the rest of the project files
+COPY --chown=appuser:appuser . /app/
 
-# Change ownership of everything to appuser
-RUN chown -R appuser:appuser /app
+# Set permissions again for the cookies after all files are copied
+RUN chown -R appuser:appuser /app/cookies && \
+    chmod -R 755 /app/cookies && \
+    chmod 666 /app/cookies/*.txt || true
 
-# Set very permissive permissions specifically for cookies directory and files
-RUN chmod -R 755 /app/cookies
-RUN chmod 666 /app/cookies/*.txt
-
-# Switch to appuser
+# Switch to appuser for running the application
 USER appuser
+
+# Command to run when container starts
+CMD ["python", "app.py"]
