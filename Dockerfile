@@ -1,11 +1,13 @@
 FROM python:3.10-slim
 
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Set work directory
 WORKDIR /app
 
-# System dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -14,20 +16,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user first
-RUN useradd -m appuser
+# Install Python dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project (including cookies early)
+# Copy project
 COPY . /app/
 
-# Create folders and fix permissions
-RUN mkdir -p /app/downloads /app/staticfiles /app/cookies \
-    && chmod 644 /app/cookies/youtube.com_cookies.txt || true \
-    && chmod 644 /app/cookies/instagram.com_cookies.txt || true \
-    && chown -R appuser:appuser /app
-
-# Install Python deps
-RUN pip install --no-cache-dir -r /app/requirements.txt
-
-# Switch to non-root user
+# Run as non-root user (for security)
+RUN useradd -m appuser
+RUN chown -R appuser:appuser /app
 USER appuser
+
+# Create directories for media
+RUN mkdir -p /app/downloads
+RUN mkdir -p /app/staticfiles
+
+# Give proper permissions to the cookies folder and file
+RUN chmod -R 777 /app/cookies
+RUN chmod 777 /app/cookies/youtube.com_cookies.txt
+RUN chown -R appuser:appuser /app/cookies
+
