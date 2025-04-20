@@ -214,7 +214,7 @@ def download_video(
     common_options = {
         "quiet": True,
         "no_warnings": True,
-        "cookiefile": "/app/cookies/youtube.com_cookies.txt",
+        "cookiefile": "/app/youtube.com_cookies.txt",
         # Add user agent to avoid blocking
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         # Add referer
@@ -224,7 +224,7 @@ def download_video(
         # Add Instagram-specific options
         common_options.update(
             {
-                "cookiefile": "/app/cookies/instagram.com_cookies.txt",  # You'll need to create this
+                "cookiefile": "/app/instagram.com_cookies.txt",  # You'll need to create this
                 "username": os.getenv("INSTAGRAM_USERNAME"),
                 "password": os.getenv("INSTAGRAM_PASSWORD"),
             }
