@@ -1,10 +1,14 @@
 import os
 import re
+import subprocess
+
+# Add this to your imports
+import sys
 import tempfile
 from datetime import datetime
 
 import yt_dlp
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -24,6 +28,19 @@ from bot.models import Download, User
 
 # Constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB Telegram limit
+TIKTOK_RE = re.compile(r"https?://(?:www\.|m\.)?tiktok\.com\S+", re.IGNORECASE)
+
+
+# Add this function
+def update_yt_dlp():
+    """Update yt-dlp to latest version"""
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"]
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
 
 def get_or_create_user(update: Update):
@@ -167,6 +184,16 @@ def handle_tiktok_url(update: Update, context: CallbackContext):
     """Handle TikTok URLs"""
     url = update.message.text.strip()
 
+    # Normalize TikTok URL
+    if "vm.tiktok.com" in url or "/t/" in url:
+        try:
+            with yt_dlp.YoutubeDL() as ydl:
+                info = ydl.extract_info(url, download=False)
+                url = info["webpage_url"]
+        except Exception as e:
+            update.message.reply_text("❌ Could not resolve shortened TikTok URL")
+            return
+
     keyboard = [
         [
             InlineKeyboardButton("Video 📹", callback_data=f"dl_video_{url}"),
@@ -176,7 +203,27 @@ def handle_tiktok_url(update: Update, context: CallbackContext):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text(
-        "Please select the download format:", reply_markup=reply_markup
+        "Choose TikTok download format:", reply_markup=reply_markup
+    )
+
+
+def handle_pornhub_url(update: Update, context: CallbackContext):
+    """Handle PornHub URLs"""
+    url = update.message.text.strip()
+
+    # Save the URL to user_data to avoid exceeding callback_data size
+    context.user_data["pornhub_url"] = url
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Video 📹", callback_data="dl_ph_video"),
+            InlineKeyboardButton("Audio 🎵", callback_data="dl_ph_audio"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text(
+        "🔞 Please select the download format:", reply_markup=reply_markup
     )
 
 
@@ -203,6 +250,26 @@ def handle_callback(update: Update, context: CallbackContext):
             download_type=download_type,
             processing_msg=processing_msg,
         )
+    if query.data in ["dl_ph_video", "dl_ph_audio"]:
+        url = context.user_data.get("pornhub_url")
+
+        if not url:
+            query.edit_message_text("❌ URL not found. Please resend the link.")
+            return
+
+        download_type = "VIDEO" if query.data == "dl_ph_video" else "AUDIO"
+
+        processing_msg = query.edit_message_text(
+            "⏳ Processing your request. This may take a few moments..."
+        )
+
+        download_video(
+            update=update,
+            context=context,
+            url=url,
+            download_type=download_type,
+            processing_msg=processing_msg,
+        )
 
 
 def download_video(
@@ -216,9 +283,15 @@ def download_video(
         "no_warnings": True,
         "cookiefile": "/app/youtube.com_cookies.txt",
         # Add user agent to avoid blocking
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "user-agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/100.0.4896.127 Safari/537.36"
+        ),
         # Add referer
         "referer": "https://www.tiktok.com/",
+        "geo_bypass": True,  # ← bypass geo‐blocks
+        "geo_bypass_country": "US",
     }
     if "instagram.com/stories" in url:
         # Add Instagram-specific options
@@ -229,6 +302,30 @@ def download_video(
                 "password": os.getenv("INSTAGRAM_PASSWORD"),
             }
         )
+
+    is_tiktok = "tiktok.com" in url or "tiktok.vn" in url or "vm.tiktok.com" in url
+
+    if is_tiktok:
+        common_options.update(
+            {
+                # Modern mobile user agent
+                "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+                "referer": "https://www.tiktok.com/",
+                "headers": {
+                    "Cookie": "tt_webid_v2=7132164135405970983; tt_webid=7132164135405970983;"
+                },
+                "force_generic_extractor": False,
+                "allow_unplayable_formats": True,
+                "no_check_certificate": True,
+                "extractor_args": {
+                    "tiktok": {
+                        "device_id": "7132164135405970983",
+                        "iid": "7318518857994389254",
+                    }
+                },
+            }
+        )
+
     # Get video info
     try:
         with yt_dlp.YoutubeDL(common_options) as ydl:
@@ -284,7 +381,21 @@ def download_video(
                 ],
             }
         )
-
+    if is_tiktok and download_type == "VIDEO":
+        download_options.update(
+            {
+                "format": "(bv*[vcodec^=h264]+ba[acodec^=mp4a])/best",
+                "merge_output_format": "mp4",
+            }
+        )
+    elif is_tiktok and download_type == "AUDIO":
+        download_options.update(
+            {
+                "format": "ba[ext=mp3]/bestaudio",
+                "extract_audio": True,
+                "audio_format": "mp3",
+            }
+        )
     # Perform the download
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:
@@ -375,14 +486,19 @@ def handle_message(update: Update, context: CallbackContext):
         r"(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[a-zA-Z0-9_-]+"
     )
     instagram_pattern = r"(https?://)?(www\.)?(instagram\.com/(p/|stories/|reel/)|instagr\.am/p/)[a-zA-Z0-9_-]+"
-    tiktok_pattern = r"(https?://)?(www\.)?(tiktok\.com/(@[^/]+/video/|v/)|vm\.tiktok\.com/)[a-zA-Z0-9_-]+"
+    tiktok_pattern = r"(https?://)?(www\.|m\.)?(tiktok\.com/(@[\w.-]+/video/|v/|t/|embed/)|vm\.tiktok\.com/|vt\.tiktok\.com/)[\w-]+"
+    pornhub_pattern = (
+        r"https?://(?:[\w]+\.)?pornhub\.(?:com|org)/view_video\.php\?viewkey=[\w]+"
+    )
 
     if re.search(instagram_pattern, message_text):
         handle_instagram_url(update, context)
-    elif re.search(tiktok_pattern, message_text):
-        handle_tiktok_url(update, context)
     elif re.search(youtube_pattern, message_text):
         handle_youtube_url(update, context)
+    elif re.search(pornhub_pattern, message_text):
+        handle_pornhub_url(update, context)
+    elif re.search(tiktok_pattern, message_text):
+        handle_tiktok_url(update, context)
     else:
         update.message.reply_text(
             "Please send a valid link. Use /help for more information."
@@ -400,6 +516,15 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         token = os.getenv("TELEGRAM_TOKEN")
+        # Try to update yt-dlp first
+        self.stdout.write(self.style.NOTICE("Updating yt-dlp..."))
+        if update_yt_dlp():
+            self.stdout.write(self.style.SUCCESS("yt-dlp updated successfully"))
+        else:
+            self.stdout.write(
+                self.style.WARNING("Failed to update yt-dlp, using existing version")
+            )
+
         if not token:
             self.stdout.write(
                 self.style.ERROR("TELEGRAM_TOKEN not found in environment")
