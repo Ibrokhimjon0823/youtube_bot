@@ -33,6 +33,7 @@ services:
       - .:/app
       - download_files:/app/downloads
       - ./youtube.com_cookies.txt:/app/youtube.com_cookies.txt:rw
+      - .instagram.com_cookies.txt:/app/.instagram.com_cookies.txt:rw
     env_file:
       - .env
     depends_on:

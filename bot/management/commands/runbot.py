@@ -45,8 +45,8 @@ def start(update: Update, context: CallbackContext):
     """Start command - introduces the bot and initializes user"""
     get_or_create_user(update)
     welcome_msg = (
-        "Welcome to YouTube Downloader Bot!\n\n"
-        "Send me a YouTube link to download videos or extract audio.\n"
+        "Welcome to Video Downloader Bot!\n\n"
+        "Send me a link to download videos or extract audio.\n"
         "Use /help to see all available commands."
     )
 
@@ -62,8 +62,8 @@ def start(update: Update, context: CallbackContext):
 def help_command(update: Update, context: CallbackContext):
     """Show help information"""
     help_text = (
-        "🤖 *YouTube Downloader Bot Help*\n\n"
-        "Simply send a YouTube link, and I'll give you options to download as video or audio.\n\n"
+        "🤖 *Video Downloader Bot Help*\n\n"
+        "Simply send a link, and I'll give you options to download as video or audio.\n\n"
         "*Commands:*\n"
         "/start - Start the bot\n"
         "/stats - View your download statistics\n"
@@ -71,7 +71,10 @@ def help_command(update: Update, context: CallbackContext):
         "*Supported formats:*\n"
         "- YouTube videos\n"
         "- YouTube shorts\n\n"
-        "The bot will automatically detect YouTube links in your messages."
+        "- Instagram reels\n"
+        "- Instagram stories\n\n"
+        "- TikTok videos\n\n"
+        "The bot will automatically detect links in your messages."
     )
 
     update.message.reply_text(help_text, parse_mode="Markdown")
@@ -134,6 +137,49 @@ def handle_youtube_url(update: Update, context: CallbackContext):
     )
 
 
+def handle_instagram_url(update: Update, context: CallbackContext):
+    """Handle Instagram URLs"""
+    url = update.message.text.strip()
+
+    # Check if it's a story URL
+    is_story = "stories" in url
+
+    if is_story:
+        # Inform user that story download requires authentication
+        update.message.reply_text(
+            "📱 Instagram story detected. Note that story downloads may require authentication."
+        )
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Video 📹", callback_data=f"dl_video_{url}"),
+            InlineKeyboardButton("Audio 🎵", callback_data=f"dl_audio_{url}"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text(
+        "Please select the download format:", reply_markup=reply_markup
+    )
+
+
+def handle_tiktok_url(update: Update, context: CallbackContext):
+    """Handle TikTok URLs"""
+    url = update.message.text.strip()
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Video 📹", callback_data=f"dl_video_{url}"),
+            InlineKeyboardButton("Audio 🎵", callback_data=f"dl_audio_{url}"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.message.reply_text(
+        "Please select the download format:", reply_markup=reply_markup
+    )
+
+
 def handle_callback(update: Update, context: CallbackContext):
     """Handle callback queries from inline keyboards"""
     query = update.callback_query
@@ -169,7 +215,20 @@ def download_video(
         "quiet": True,
         "no_warnings": True,
         "cookiefile": "/app/youtube.com_cookies.txt",
+        # Add user agent to avoid blocking
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        # Add referer
+        "referer": "https://www.tiktok.com/",
     }
+    if "instagram.com/stories" in url:
+        # Add Instagram-specific options
+        common_options.update(
+            {
+                "cookiefile": "/app/instagram.com_cookies.txt",  # You'll need to create this
+                "username": os.getenv("INSTAGRAM_USERNAME"),
+                "password": os.getenv("INSTAGRAM_PASSWORD"),
+            }
+        )
     # Get video info
     try:
         with yt_dlp.YoutubeDL(common_options) as ydl:
@@ -315,16 +374,29 @@ def handle_message(update: Update, context: CallbackContext):
     youtube_pattern = (
         r"(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[a-zA-Z0-9_-]+"
     )
-    if re.search(youtube_pattern, message_text):
+    instagram_pattern = r"(https?://)?(www\.)?(instagram\.com/(p/|stories/|reel/)|instagr\.am/p/)[a-zA-Z0-9_-]+"
+    tiktok_pattern = r"(https?://)?(www\.)?(tiktok\.com/(@[^/]+/video/|v/)|vm\.tiktok\.com/)[a-zA-Z0-9_-]+"
+
+    if re.search(instagram_pattern, message_text):
+        handle_instagram_url(update, context)
+    elif re.search(tiktok_pattern, message_text):
+        handle_tiktok_url(update, context)
+    elif re.search(youtube_pattern, message_text):
         handle_youtube_url(update, context)
     else:
         update.message.reply_text(
-            "Please send a valid YouTube link. Use /help for more information."
+            "Please send a valid link. Use /help for more information."
+            "*Supported formats:*\n"
+            "- YouTube videos\n"
+            "- YouTube shorts\n\n"
+            "- Instagram reels\n"
+            "- Instagram stories\n\n"
+            "- TikTok videos\n\n"
         )
 
 
 class Command(BaseCommand):
-    help = "Run YouTube Downloader Telegram Bot"
+    help = "Run Video Downloader Telegram Bot"
 
     def handle(self, *args, **kwargs):
         token = os.getenv("TELEGRAM_TOKEN")
