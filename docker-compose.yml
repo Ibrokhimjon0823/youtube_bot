@@ -28,6 +28,8 @@ services:
 
   youtube_bot:
     build: .
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: python manage.py runbot
     volumes:
       - .:/app

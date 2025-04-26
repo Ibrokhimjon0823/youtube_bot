@@ -27,7 +27,7 @@ from telegram.ext import (
 from bot.models import Download, User
 
 # Constants
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB Telegram limit
+MAX_FILE_SIZE = 2000 * 1024 * 1024  # 2000MB Telegram limit
 TIKTOK_RE = re.compile(r"https?://(?:www\.|m\.)?tiktok\.com\S+", re.IGNORECASE)
 
 
@@ -302,6 +302,16 @@ def download_video(
                 "password": os.getenv("INSTAGRAM_PASSWORD"),
             }
         )
+    if "instagram.com" in url:
+        common_options.update({
+            "referer": "https://www.instagram.com/",
+            "user-agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/100.0.4896.127 Safari/537.36"
+            ),
+        })
+
 
     is_tiktok = "tiktok.com" in url or "tiktok.vn" in url or "vm.tiktok.com" in url
 
@@ -350,7 +360,7 @@ def download_video(
     )
 
     # Check if the video is too long (10 minutes max)
-    if duration > 600:  # 10 minutes
+    if duration > 6000:  # 10 minutes
         context.bot.edit_message_text(
             text="❌ Video is too long. Maximum duration is 10 minutes.",
             chat_id=processing_msg.chat_id,
@@ -418,7 +428,7 @@ def download_video(
             # Check if file is too large for Telegram
             if file_size > MAX_FILE_SIZE:
                 raise Exception(
-                    f"File size ({file_size / 1024 / 1024:.1f}MB) exceeds Telegram's limit (50MB)"
+                    f"File size ({file_size / 1024 / 1024:.1f}MB) exceeds Telegram's limit (2000MB)"
                 )
 
             # Update processing message
@@ -485,7 +495,7 @@ def handle_message(update: Update, context: CallbackContext):
     youtube_pattern = (
         r"(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[a-zA-Z0-9_-]+"
     )
-    instagram_pattern = r"(https?://)?(www\.)?(instagram\.com/(p/|stories/|reel/)|instagr\.am/p/)[a-zA-Z0-9_-]+"
+    instagram_pattern = r"(https?://)?(www\.)?(instagram\.com/(p/|stories/[\w.-]+(?:/\d+)?|reel/)|instagr\.am/p/)[\w.-]+"
     tiktok_pattern = r"(https?://)?(www\.|m\.)?(tiktok\.com/(@[\w.-]+/video/|v/|t/|embed/)|vm\.tiktok\.com/|vt\.tiktok\.com/)[\w-]+"
     pornhub_pattern = (
         r"https?://(?:[\w]+\.)?pornhub\.(?:com|org)/view_video\.php\?viewkey=[\w]+"
@@ -531,7 +541,7 @@ class Command(BaseCommand):
             )
             return
 
-        updater = Updater(token=token, use_context=True)
+        updater = Updater(token=token, use_context=True, base_url="http://57.129.53.28:8081/bot")
         dp = updater.dispatcher
 
         # Add handlers
